@@ -25,16 +25,12 @@ import java.util.stream.Collectors;
 
 import org.reactivestreams.Publisher;
 
-import io.lettuce.core.ExceptionFactory;
 import io.lettuce.core.RedisCommandExecutionException;
-import io.lettuce.core.RedisCommandInterruptedException;
 import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.api.NodeSelectionSupport;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
-import io.lettuce.core.internal.AbstractInvocationHandler;
-import io.lettuce.core.internal.LettuceAssert;
-import io.lettuce.core.internal.TimeoutProvider;
+import io.lettuce.core.internal.*;
 import io.lettuce.core.protocol.RedisCommand;
 
 /**
@@ -48,11 +44,15 @@ class NodeSelectionInvocationHandler extends AbstractInvocationHandler {
     private static final Method NULL_MARKER_METHOD;
 
     private final Map<Method, Method> nodeSelectionMethods = new ConcurrentHashMap<>();
+
     private final Map<Method, Method> connectionMethod = new ConcurrentHashMap<>();
+
     private final Class<?> commandsInterface;
 
     private final AbstractNodeSelection<?, ?, ?, ?> selection;
+
     private final ExecutionModel executionModel;
+
     private final TimeoutProvider timeoutProvider;
 
     static {
@@ -216,7 +216,7 @@ class NodeSelectionInvocationHandler extends AbstractInvocationHandler {
         } catch (TimeoutException e) {
             complete = false;
         } catch (Exception e) {
-            throw new RedisCommandInterruptedException(e);
+            throw Exceptions.bubble(e);
         }
 
         return complete;
@@ -313,4 +313,5 @@ class NodeSelectionInvocationHandler extends AbstractInvocationHandler {
     enum ExecutionModel {
         SYNC, ASYNC, REACTIVE
     }
+
 }

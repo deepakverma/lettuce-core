@@ -19,7 +19,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.*;
 
-import io.lettuce.core.*;
+import io.lettuce.core.RedisFuture;
 import io.netty.channel.ChannelFuture;
 
 /**
@@ -38,7 +38,7 @@ public abstract class Futures {
     /**
      * Create a composite {@link CompletableFuture} is composed from the given {@code stages}.
      *
-     * @param stages must not be {@literal null}.
+     * @param stages must not be {@code null}.
      * @return the composed {@link CompletableFuture}.
      * @since 5.1.1
      */
@@ -60,7 +60,7 @@ public abstract class Futures {
     /**
      * Create a {@link CompletableFuture} that is completed exceptionally with {@code throwable}.
      *
-     * @param throwable must not be {@literal null}.
+     * @param throwable must not be {@code null}.
      * @return the exceptionally completed {@link CompletableFuture}.
      */
     public static <T> CompletableFuture<T> failed(Throwable throwable) {
@@ -137,7 +137,7 @@ public abstract class Futures {
      *
      * @param timeout Maximum time to wait for futures to complete.
      * @param future Future to wait for.
-     * @return {@literal true} if future completes in time, otherwise {@literal false}
+     * @return {@code true} if future completes in time, otherwise {@code false}
      * @since 6.0
      */
     public static boolean await(Duration timeout, Future<?> future) {
@@ -150,7 +150,7 @@ public abstract class Futures {
      * @param timeout Maximum time to wait for futures to complete.
      * @param unit Unit of time for the timeout.
      * @param future Future to wait for.
-     * @return {@literal true} if future completes in time, otherwise {@literal false}
+     * @return {@code true} if future completes in time, otherwise {@code false}
      * @since 6.0
      */
     public static boolean await(long timeout, TimeUnit unit, Future<?> future) {
@@ -172,7 +172,7 @@ public abstract class Futures {
         } catch (TimeoutException e) {
             return false;
         } catch (Exception e) {
-            return handleException(e);
+            throw Exceptions.fromSynchronization(e);
         }
     }
 
@@ -181,7 +181,7 @@ public abstract class Futures {
      *
      * @param timeout Maximum time to wait for futures to complete.
      * @param futures Futures to wait for.
-     * @return {@literal true} if all futures complete in time, otherwise {@literal false}
+     * @return {@code true} if all futures complete in time, otherwise {@code false}
      * @since 6.0
      */
     public static boolean awaitAll(Duration timeout, Future<?>... futures) {
@@ -194,7 +194,7 @@ public abstract class Futures {
      * @param timeout Maximum time to wait for futures to complete.
      * @param unit Unit of time for the timeout.
      * @param futures Futures to wait for.
-     * @return {@literal true} if all futures complete in time, otherwise {@literal false}
+     * @return {@code true} if all futures complete in time, otherwise {@code false}
      */
     public static boolean awaitAll(long timeout, TimeUnit unit, Future<?>... futures) {
 
@@ -223,7 +223,7 @@ public abstract class Futures {
         } catch (TimeoutException e) {
             return false;
         } catch (Exception e) {
-            return handleException(e);
+            throw Exceptions.fromSynchronization(e);
         }
     }
 
@@ -247,33 +247,8 @@ public abstract class Futures {
             }
             return cmd.get();
         } catch (Exception e) {
-            return handleException(e);
+            throw Exceptions.bubble(e);
         }
     }
 
-    private static <T> T handleException(Exception e) {
-
-        if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
-        }
-
-        if (e instanceof ExecutionException) {
-            if (e.getCause() instanceof RedisCommandExecutionException) {
-                throw ExceptionFactory.createExecutionException(e.getCause().getMessage(), e.getCause());
-            }
-
-            if (e.getCause() instanceof RedisCommandTimeoutException) {
-                throw new RedisCommandTimeoutException(e.getCause());
-            }
-
-            throw new RedisException(e.getCause());
-        }
-
-        if (e instanceof InterruptedException) {
-            Thread.currentThread().interrupt();
-            throw new RedisCommandInterruptedException(e);
-        }
-
-        throw ExceptionFactory.createExecutionException(null, e);
-    }
 }
